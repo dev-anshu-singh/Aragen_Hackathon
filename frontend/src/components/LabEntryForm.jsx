@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Play, Loader2, Sparkles, Beaker } from 'lucide-react';
+import { Plus, Trash2, Beaker } from 'lucide-react';
 
 const COMMON_TESTS = [
   { name: "Hemoglobin", unit: "g/dL" },
@@ -23,8 +23,6 @@ export default function LabEntryForm({
   onUpdateLab,
   onAddRow,
   onRemoveRow,
-  onAnalyze,
-  isLoading
 }) {
   const handleTestNameChange = (index, value) => {
     onUpdateLab(index, 'test_name', value);
@@ -40,7 +38,8 @@ export default function LabEntryForm({
       <div className="section-header">
         <div className="section-title-group">
           <Beaker className="section-icon" size={20} />
-          <h2>Lab Results Queue ({labs.length} {labs.length === 1 ? 'test' : 'tests'})</h2>
+          <h2>Lab Results Queue</h2>
+          <span className="queue-count-pill">{labs.length} {labs.length === 1 ? 'test' : 'tests'}</span>
         </div>
         <button
           type="button"
@@ -48,7 +47,7 @@ export default function LabEntryForm({
           onClick={onAddRow}
         >
           <Plus size={16} />
-          <span>Add Test Row</span>
+          <span>Add Row</span>
         </button>
       </div>
 
@@ -118,29 +117,8 @@ export default function LabEntryForm({
         ))}
       </datalist>
 
-      <div className="form-actions">
-        <div className="form-hints">
-          <span>💡 Tip: Accepts numeric values (14.2) or qualitative strip results (Negatif, 1+, 2+).</span>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-primary btn-lg"
-          onClick={onAnalyze}
-          disabled={isLoading || labs.length === 0 || !labs.some(l => l.test_name && l.value)}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="spinner" size={18} />
-              <span>Analyzing with AI Agent...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles size={18} />
-              <span>Analyze {labs.length} Results with AI</span>
-            </>
-          )}
-        </button>
+      <div className="form-footer-hint">
+        <span>💡 Accepts numeric values (14.2) or qualitative strip results (Negatif, 1+, 2+)</span>
       </div>
     </div>
   );
