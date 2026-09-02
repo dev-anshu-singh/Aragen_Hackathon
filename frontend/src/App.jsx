@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
-import SamplePresets, { PRESET_DATA } from './components/SamplePresets';
+import SamplePresets from './components/SamplePresets';
 import CsvUploader from './components/CsvUploader';
 import LabEntryForm from './components/LabEntryForm';
 import SummaryBanner from './components/SummaryBanner';
@@ -13,9 +13,12 @@ import './App.css';
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
 export default function App() {
-  const [labs, setLabs] = useState([{ test_name: '', value: '', unit: '' }]);
-  const [activePreset, setActivePreset] = useState(null);
-  const [uploadedFileName, setUploadedFileName] = useState(null);
+  const [categories, setCategories] = useState({
+    normal: [],
+    warning: [],
+    critical: []
+  });
+  const [activeCategory, setActiveCategory] = useState('normal');
   const [results, setResults] = useState([]);
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +28,12 @@ export default function App() {
   const [historyBatches, setHistoryBatches] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Load history and latest analysis on mount
+  // Current active queue of labs
+  const activeLabs = categories[activeCategory] && categories[activeCategory].length > 0
+    ? categories[activeCategory]
+    : [{ test_name: '', value: '', unit: '' }];
+
+  // Load history on mount
   const fetchHistory = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/history`);
@@ -45,21 +53,6 @@ export default function App() {
         if (res.ok) {
           setBackendOnline(true);
           fetchHistory();
-          // Load latest saved analysis if any
-          const latestRes = await fetch(`${API_BASE_URL}/history/latest`);
-          if (latestRes.ok) {
-            const latestData = await latestRes.json();
-            if (latestData && latestData.results && latestData.results.length > 0) {
-              setResults(latestData.results);
-              setSummary(latestData.summary || '');
-              // Sync input table with the latest saved tests
-              setLabs(latestData.results.map(r => ({
-                test_name: r.test_name,
-                value: r.value,
-                unit: r.unit
-              })));
-            }
-          }
         } else {
           setBackendOnline(false);
         }
@@ -70,19 +63,18 @@ export default function App() {
     checkBackendAndInit();
   }, []);
 
-  const handleSelectPreset = (presetKey, data) => {
-    setActivePreset(presetKey);
-    setUploadedFileName(null);
-    setLabs(JSON.parse(JSON.stringify(data)));
+  const handleSelectCategory = (categoryKey) => {
+    setActiveCategory(categoryKey);
     setResults([]);
     setSummary('');
     setErrorMessage('');
   };
 
   const handleReset = () => {
-    setActivePreset(null);
-    setUploadedFileName(null);
-    setLabs([{ test_name: '', value: '', unit: '' }]);
+    setCategories(prev => ({
+      ...prev,
+      [activeCategory]: []
+    }));
     setResults([]);
     setSummary('');
     setErrorMessage('');
@@ -90,9 +82,10 @@ export default function App() {
   };
 
   const handleLabsLoaded = (newLabs, fileName) => {
-    setActivePreset(null);
-    setUploadedFileName(fileName);
-    setLabs(newLabs);
+    setCategories(prev => ({
+      ...prev,
+      [activeCategory]: newLabs
+    }));
     setResults([]);
     setSummary('');
     setErrorMessage('');
@@ -111,27 +104,41 @@ export default function App() {
   };
 
   const handleUpdateLab = (index, field, value) => {
-    const updated = [...labs];
-    updated[index][field] = value;
-    setLabs(updated);
-    setActivePreset(null);
+    const current = [...activeLabs];
+    current[index] = { ...current[index], [field]: value };
+    setCategories(prev => ({
+      ...prev,
+      [activeCategory]: current
+    }));
   };
 
   const handleAddRow = () => {
-    setLabs([...labs, { test_name: '', value: '', unit: '' }]);
+    const current = [...activeLabs, { test_name: '', value: '', unit: '' }];
+    setCategories(prev => ({
+      ...prev,
+      [activeCategory]: current
+    }));
   };
 
   const handleRemoveRow = (index) => {
-    if (labs.length <= 1) return;
-    const updated = labs.filter((_, i) => i !== index);
-    setLabs(updated);
+    if (activeLabs.length <= 1) {
+      setCategories(prev => ({
+        ...prev,
+        [activeCategory]: []
+      }));
+      return;
+    }
+    const updated = activeLabs.filter((_, i) => i !== index);
+    setCategories(prev => ({
+      ...prev,
+      [activeCategory]: updated
+    }));
   };
 
   const handleAnalyze = async () => {
-    // Validate that at least one valid lab is provided
-    const validLabs = labs.filter(l => l.test_name.trim() && l.value.trim());
+    const validLabs = activeLabs.filter(l => l.test_name.trim() && l.value.trim());
     if (validLabs.length === 0) {
-      setErrorMessage('Please enter at least one valid lab test name and value.');
+      setErrorMessage(`Please enter or upload at least one valid lab test in the ${activeCategory} category.`);
       return;
     }
 
@@ -179,18 +186,23 @@ export default function App() {
     normal: results.filter(r => r.status === 'Normal').length,
   };
 
+  const panelCounts = {
+    normal: (categories.normal || []).length,
+    warning: (categories.warning || []).length,
+    critical: (categories.critical || []).length,
+  };
+
   return (
     <div className="app-container">
       {/* Header */}
       <Header backendOnline={backendOnline} />
 
-      {/* Preset Pickers & Dynamic Upload Status */}
+      {/* Category Selectors */}
       <SamplePresets
-        onSelectPreset={handleSelectPreset}
+        onSelectCategory={handleSelectCategory}
         onReset={handleReset}
-        activePreset={activePreset}
-        uploadedFileName={uploadedFileName}
-        uploadedCount={labs.length}
+        activeCategory={activeCategory}
+        panelCounts={panelCounts}
         onToggleHistory={() => setShowHistory(true)}
         historyCount={historyBatches.length}
       />
@@ -199,7 +211,7 @@ export default function App() {
       <div className="input-grid">
         <CsvUploader onLabsLoaded={handleLabsLoaded} />
         <LabEntryForm
-          labs={labs}
+          labs={activeLabs}
           onUpdateLab={handleUpdateLab}
           onAddRow={handleAddRow}
           onRemoveRow={handleRemoveRow}
