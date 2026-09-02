@@ -19,6 +19,26 @@
 
 ---
 
+## 🖼️ Application Walkthrough
+
+### 1. Clinical Analysis Dashboard & Explainable AI
+*Real-time clinical severity classification, urgent panic value alert banner, 4-metric overview, severity filter tabs, and detailed physiological insights with actionable next steps:*
+![Clinical Analysis Dashboard](screenshots/dashboard_results.png)
+
+### 2. Dual Ingestion: CSV Upload & Manual Table Queue
+*Drag-and-drop CSV parser supporting Kaggle dataset headers alongside an interactive manual entry queue with real-time test count:*
+![CSV Intake & Manual Queue](screenshots/csv_intake.png)
+
+### 3. Agent Execution & Asynchronous Loading Overlay
+*Live UI feedback while the LangGraph agent orchestrates classification and clinical explanation tools over the FastMCP stdio protocol:*
+![AI Agent Execution Overlay](screenshots/loading_agent.png)
+
+### 4. Clean Landing Dashboard & Pre-built Demo Panels
+*One-click evaluation presets (Normal, Warning, Critical) clearly separated from unanalyzed intake records, with persistent SQLite history access:*
+![Landing Page & Demo Panels](screenshots/landing_view.png)
+
+---
+
 ## 🏗️ Architecture
 
 ```
