@@ -13,12 +13,8 @@ import './App.css';
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
 export default function App() {
-  const [categories, setCategories] = useState({
-    normal: [],
-    warning: [],
-    critical: []
-  });
-  const [activeCategory, setActiveCategory] = useState('normal');
+  const [labs, setLabs] = useState([{ test_name: '', value: '', unit: '' }]);
+  const [activeDemo, setActiveDemo] = useState(null);
   const [results, setResults] = useState([]);
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,11 +23,6 @@ export default function App() {
   const [backendOnline, setBackendOnline] = useState(true);
   const [historyBatches, setHistoryBatches] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-
-  // Current active queue of labs
-  const activeLabs = categories[activeCategory] && categories[activeCategory].length > 0
-    ? categories[activeCategory]
-    : [{ test_name: '', value: '', unit: '' }];
 
   // Load history on mount
   const fetchHistory = async () => {
@@ -63,18 +54,17 @@ export default function App() {
     checkBackendAndInit();
   }, []);
 
-  const handleSelectCategory = (categoryKey) => {
-    setActiveCategory(categoryKey);
+  const handleLoadDemo = (demoKey, demoData) => {
+    setActiveDemo(demoKey);
+    setLabs(JSON.parse(JSON.stringify(demoData)));
     setResults([]);
     setSummary('');
     setErrorMessage('');
   };
 
   const handleReset = () => {
-    setCategories(prev => ({
-      ...prev,
-      [activeCategory]: []
-    }));
+    setActiveDemo(null);
+    setLabs([{ test_name: '', value: '', unit: '' }]);
     setResults([]);
     setSummary('');
     setErrorMessage('');
@@ -82,10 +72,8 @@ export default function App() {
   };
 
   const handleLabsLoaded = (newLabs, fileName) => {
-    setCategories(prev => ({
-      ...prev,
-      [activeCategory]: newLabs
-    }));
+    setActiveDemo(null);
+    setLabs(newLabs);
     setResults([]);
     setSummary('');
     setErrorMessage('');
@@ -104,41 +92,29 @@ export default function App() {
   };
 
   const handleUpdateLab = (index, field, value) => {
-    const current = [...activeLabs];
-    current[index] = { ...current[index], [field]: value };
-    setCategories(prev => ({
-      ...prev,
-      [activeCategory]: current
-    }));
+    const updated = [...labs];
+    updated[index] = { ...updated[index], [field]: value };
+    setLabs(updated);
+    setActiveDemo(null);
   };
 
   const handleAddRow = () => {
-    const current = [...activeLabs, { test_name: '', value: '', unit: '' }];
-    setCategories(prev => ({
-      ...prev,
-      [activeCategory]: current
-    }));
+    setLabs([...labs, { test_name: '', value: '', unit: '' }]);
   };
 
   const handleRemoveRow = (index) => {
-    if (activeLabs.length <= 1) {
-      setCategories(prev => ({
-        ...prev,
-        [activeCategory]: []
-      }));
+    if (labs.length <= 1) {
+      setLabs([{ test_name: '', value: '', unit: '' }]);
       return;
     }
-    const updated = activeLabs.filter((_, i) => i !== index);
-    setCategories(prev => ({
-      ...prev,
-      [activeCategory]: updated
-    }));
+    const updated = labs.filter((_, i) => i !== index);
+    setLabs(updated);
   };
 
   const handleAnalyze = async () => {
-    const validLabs = activeLabs.filter(l => l.test_name.trim() && l.value.trim());
+    const validLabs = labs.filter(l => l.test_name.trim() && l.value.trim());
     if (validLabs.length === 0) {
-      setErrorMessage(`Please enter or upload at least one valid lab test in the ${activeCategory} category.`);
+      setErrorMessage("Please enter or upload at least one valid lab test name and value.");
       return;
     }
 
@@ -186,23 +162,16 @@ export default function App() {
     normal: results.filter(r => r.status === 'Normal').length,
   };
 
-  const panelCounts = {
-    normal: (categories.normal || []).length,
-    warning: (categories.warning || []).length,
-    critical: (categories.critical || []).length,
-  };
-
   return (
     <div className="app-container">
       {/* Header */}
       <Header backendOnline={backendOnline} />
 
-      {/* Category Selectors */}
+      {/* Demo Loaders & Queue Controls */}
       <SamplePresets
-        onSelectCategory={handleSelectCategory}
+        onLoadDemo={handleLoadDemo}
         onReset={handleReset}
-        activeCategory={activeCategory}
-        panelCounts={panelCounts}
+        activeDemo={activeDemo}
         onToggleHistory={() => setShowHistory(true)}
         historyCount={historyBatches.length}
       />
@@ -211,7 +180,7 @@ export default function App() {
       <div className="input-grid">
         <CsvUploader onLabsLoaded={handleLabsLoaded} />
         <LabEntryForm
-          labs={activeLabs}
+          labs={labs}
           onUpdateLab={handleUpdateLab}
           onAddRow={handleAddRow}
           onRemoveRow={handleRemoveRow}
@@ -228,7 +197,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Results Presentation */}
+      {/* Results Presentation (Only shown once analysis is complete) */}
       {results.length > 0 && (
         <section className="results-section animate-fade-in">
           {/* Summary Banner & Metrics */}
