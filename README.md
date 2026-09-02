@@ -12,8 +12,8 @@
 |---|---|---|
 | **True MCP Architecture** | FastMCP server with 5 registered tools, called over stdio by the LangGraph agent | Not just a wrapper around an API — the agent *discovers and invokes* tools through the MCP protocol exactly as designed |
 | **3-Tier Classification** | Panic values → deviation-based severity → LLM fallback for unknown tests | Unknown tests (e.g., Creatinine, Vitamin D) don't crash — they get classified via AI medical knowledge with a `source: "llm_estimated"` transparency tag |
-| **Async Parallel Pipeline** | `asyncio.gather` with `return_exceptions=True` and per-call 10s timeouts | One stuck Gemini call can't stall the whole batch. Each lab is error-isolated — one failure doesn't kill the rest |
-| **Explainable AI (XAI)** | Every result shows *why* it was flagged, the physiological mechanism, associated symptoms, and a specific next step | Judges and users understand the reasoning, not just "abnormal" |
+| **Async Parallel Pipeline** | Every MCP tool call — classification and explanation — runs through async Gemini clients with `asyncio.gather`, bounded concurrency, `return_exceptions=True`, and per-call 10s timeouts | A 20+ test panel classifies and explains concurrently instead of one-by-one — turns a linear O(n) wait into a bounded-parallel one, with per-item isolation so no single failure blocks the batch |
+| **Explainable AI (XAI)** | Every result shows *why* it was flagged, the physiological mechanism, associated symptoms, and a specific next step | Users understand the reasoning, not just "abnormal" |
 | **SQLite Persistence** | Every analysis batch is saved with severity counts and full result history | Reload the app, your past analyses are still there. History drawer shows all past runs |
 | **Qualitative + Quantitative** | Handles both numeric values (14.2 g/dL) and urine strip results (Negatif, 1+, 2+, 3+) | Matches the Kaggle dataset format exactly — no test type is ignored |
 
@@ -82,7 +82,9 @@
 
 ---
 
-## 🔬 Classification Logic (30% of rubric)
+**Async throughout the stack:** FastAPI's `/analyze_labs` is a fully async endpoint (`await agent.ainvoke()`), each LangGraph node is an async function, MCP tool calls run over async stdio sessions, and the Gemini client itself is invoked via its async interface (`client.aio.models.generate_content`) rather than blocking the event loop. No layer in the request path is synchronous.
+
+## 🔬 Classification Logic
 
 The classification pipeline handles **every edge case** through a 3-layer system:
 
@@ -123,7 +125,7 @@ Handles alternate names from the Kaggle dataset:
 
 ---
 
-## 🧠 AI Explanation Quality (25% of rubric)
+## 🧠 AI Explanation Quality
 
 Every abnormal result gets a **real-time LLM-generated explanation** with:
 
@@ -138,7 +140,7 @@ Every abnormal result gets a **real-time LLM-generated explanation** with:
 
 ---
 
-## 💻 Frontend UI (20% of rubric)
+## 💻 Frontend UI
 
 | Feature | Implementation |
 |---|---|
@@ -156,7 +158,7 @@ Every abnormal result gets a **real-time LLM-generated explanation** with:
 
 ---
 
-## 🔧 Full-Stack Completion (15% of rubric)
+## 🔧 Full-Stack Completion
 
 ### Backend Endpoints
 | Method | Endpoint | Purpose |
