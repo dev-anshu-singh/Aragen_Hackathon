@@ -62,9 +62,27 @@ async def classify_node(state: AgentState) -> dict:
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            classified = await asyncio.gather(*[_classify_single(session, lab) for lab in labs])
+            raw_classified = await asyncio.gather(
+                *[_classify_single(session, lab) for lab in labs],
+                return_exceptions=True
+            )
 
-    return {"classified": list(classified)}
+    classified = []
+    for lab, res in zip(labs, raw_classified):
+        if isinstance(res, Exception):
+            logger.error(f"Unhandled exception in classify task for {lab.get('test_name')}: {res}")
+            classified.append({
+                "test_name": lab.get("test_name", "Unknown Test"),
+                "value": str(lab.get("value", "")),
+                "unit": lab.get("unit", "-"),
+                "status": "Warning",
+                "reference_range": "Error during classification",
+                "source": "unknown",
+            })
+        else:
+            classified.append(res)
+
+    return {"classified": classified}
 
 
 async def route_node(state: AgentState) -> dict:
@@ -111,9 +129,25 @@ async def explain_node(state: AgentState) -> dict:
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            results = await asyncio.gather(*[_explain_single(session, item) for item in routed])
+            raw_results = await asyncio.gather(
+                *[_explain_single(session, item) for item in routed],
+                return_exceptions=True
+            )
 
-    return {"results": list(results)}
+    results = []
+    for item, res in zip(routed, raw_results):
+        if isinstance(res, Exception):
+            logger.error(f"Unhandled exception in explain task for {item.get('test_name')}: {res}")
+            results.append({
+                **item,
+                "explanation": f"{item.get('test_name')} is {item.get('status')}.",
+                "next_step": "Consult healthcare provider.",
+                "source": item.get("source", "unknown"),
+            })
+        else:
+            results.append(res)
+
+    return {"results": results}
 
 
 def build_graph() -> StateGraph:

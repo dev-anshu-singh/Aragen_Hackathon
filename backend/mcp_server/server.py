@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import logging
+import asyncio
 
 try:
     from backend.config import GEMINI_API_KEY, GEMINI_MODEL_NAME, FALLBACK_MODELS
@@ -186,10 +187,13 @@ async def _call_gemini_json(prompt: str) -> dict | None:
 
     for model_name in FALLBACK_MODELS:
         try:
-            response = await client.aio.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config=config
+            response = await asyncio.wait_for(
+                client.aio.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=config
+                ),
+                timeout=10.0
             )
             text = response.text.strip()
             if "```json" in text:
@@ -198,7 +202,7 @@ async def _call_gemini_json(prompt: str) -> dict | None:
                 text = text.split("```", 1)[1].split("```", 1)[0].strip()
             return json.loads(text)
         except Exception as e:
-            logger.warning(f"Model {model_name} failed: {e}. Trying next fallback model...")
+            logger.warning(f"Model {model_name} failed or timed out: {e}. Trying next fallback model...")
             continue
     return None
 
