@@ -6,28 +6,60 @@ import LabEntryForm from './components/LabEntryForm';
 import SummaryBanner from './components/SummaryBanner';
 import SeverityFilter from './components/SeverityFilter';
 import ResultCard from './components/ResultCard';
+import HistoryDrawer from './components/HistoryDrawer';
 import { AlertCircle, Stethoscope, Sparkles } from 'lucide-react';
 import './App.css';
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
 export default function App() {
-  const [labs, setLabs] = useState(PRESET_DATA.warning);
-  const [activePreset, setActivePreset] = useState('warning');
+  const [labs, setLabs] = useState([{ test_name: '', value: '', unit: '' }]);
+  const [activePreset, setActivePreset] = useState(null);
+  const [uploadedFileName, setUploadedFileName] = useState(null);
   const [results, setResults] = useState([]);
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [backendOnline, setBackendOnline] = useState(true);
+  const [historyBatches, setHistoryBatches] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
-  // Check backend health on mount
+  // Load history and latest analysis on mount
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/history`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryBatches(data || []);
+      }
+    } catch (err) {
+      console.warn("Could not load history:", err);
+    }
+  };
+
   useEffect(() => {
-    const checkBackend = async () => {
+    const checkBackendAndInit = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/health`);
         if (res.ok) {
           setBackendOnline(true);
+          fetchHistory();
+          // Load latest saved analysis if any
+          const latestRes = await fetch(`${API_BASE_URL}/history/latest`);
+          if (latestRes.ok) {
+            const latestData = await latestRes.json();
+            if (latestData && latestData.results && latestData.results.length > 0) {
+              setResults(latestData.results);
+              setSummary(latestData.summary || '');
+              // Sync input table with the latest saved tests
+              setLabs(latestData.results.map(r => ({
+                test_name: r.test_name,
+                value: r.value,
+                unit: r.unit
+              })));
+            }
+          }
         } else {
           setBackendOnline(false);
         }
@@ -35,11 +67,12 @@ export default function App() {
         setBackendOnline(false);
       }
     };
-    checkBackend();
+    checkBackendAndInit();
   }, []);
 
   const handleSelectPreset = (presetKey, data) => {
     setActivePreset(presetKey);
+    setUploadedFileName(null);
     setLabs(JSON.parse(JSON.stringify(data)));
     setResults([]);
     setSummary('');
@@ -48,6 +81,7 @@ export default function App() {
 
   const handleReset = () => {
     setActivePreset(null);
+    setUploadedFileName(null);
     setLabs([{ test_name: '', value: '', unit: '' }]);
     setResults([]);
     setSummary('');
@@ -57,10 +91,23 @@ export default function App() {
 
   const handleLabsLoaded = (newLabs, fileName) => {
     setActivePreset(null);
+    setUploadedFileName(fileName);
     setLabs(newLabs);
     setResults([]);
     setSummary('');
     setErrorMessage('');
+  };
+
+  const handleClearHistory = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/history`, { method: 'DELETE' });
+      setHistoryBatches([]);
+      setResults([]);
+      setSummary('');
+      setShowHistory(false);
+    } catch (err) {
+      console.error("Failed to clear history:", err);
+    }
   };
 
   const handleUpdateLab = (index, field, value) => {
@@ -110,6 +157,7 @@ export default function App() {
       setSummary(data.summary || '');
       setActiveFilter('ALL');
       setBackendOnline(true);
+      fetchHistory();
     } catch (err) {
       console.error("Analysis error:", err);
       setErrorMessage(err.message || 'Failed to connect to AI analysis backend. Ensure the backend server is running on port 8000.');
@@ -136,11 +184,15 @@ export default function App() {
       {/* Header */}
       <Header backendOnline={backendOnline} />
 
-      {/* Preset Pickers */}
+      {/* Preset Pickers & Dynamic Upload Status */}
       <SamplePresets
         onSelectPreset={handleSelectPreset}
         onReset={handleReset}
         activePreset={activePreset}
+        uploadedFileName={uploadedFileName}
+        uploadedCount={labs.length}
+        onToggleHistory={() => setShowHistory(true)}
+        historyCount={historyBatches.length}
       />
 
       {/* Intake Grid: CSV dropzone & Manual Table */}
@@ -185,6 +237,14 @@ export default function App() {
           </div>
         </section>
       )}
+
+      {/* SQLite History Drawer */}
+      <HistoryDrawer
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        historyBatches={historyBatches}
+        onClearHistory={handleClearHistory}
+      />
     </div>
   );
 }

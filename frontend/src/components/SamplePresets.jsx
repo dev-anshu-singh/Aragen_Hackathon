@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, AlertTriangle, AlertOctagon, RotateCcw } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, AlertOctagon, RotateCcw, FileSpreadsheet, History } from 'lucide-react';
 
 export const PRESET_DATA = {
   normal: [
@@ -37,12 +37,20 @@ export const PRESET_DATA = {
   ]
 };
 
-export default function SamplePresets({ onSelectPreset, onReset, activePreset }) {
+export default function SamplePresets({
+  onSelectPreset,
+  onReset,
+  activePreset,
+  uploadedFileName,
+  uploadedCount,
+  onToggleHistory,
+  historyCount = 0
+}) {
   return (
     <div className="presets-container glass-card">
       <div className="presets-header">
         <span className="presets-title">Quick Demo Presets:</span>
-        <span className="presets-hint">Load pre-validated patient panels for instant evaluation</span>
+        <span className="presets-hint">Load pre-validated patient panels or drop a custom CSV below</span>
       </div>
 
       <div className="presets-buttons">
@@ -73,6 +81,13 @@ export default function SamplePresets({ onSelectPreset, onReset, activePreset })
           <span>Critical Panel (8 tests)</span>
         </button>
 
+        {uploadedFileName && (
+          <div className="btn btn-preset active-upload" style={{ cursor: 'default', background: 'rgba(59, 130, 246, 0.15)', borderColor: '#3b82f6', color: '#60a5fa' }}>
+            <FileSpreadsheet size={16} />
+            <span>Uploaded: {uploadedFileName} ({uploadedCount} tests)</span>
+          </div>
+        )}
+
         <button
           type="button"
           className="btn btn-secondary btn-reset"
@@ -82,6 +97,19 @@ export default function SamplePresets({ onSelectPreset, onReset, activePreset })
           <RotateCcw size={15} />
           <span>Clear</span>
         </button>
+
+        {historyCount > 0 && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onToggleHistory}
+            style={{ marginLeft: 'auto' }}
+            title="View saved analyses in SQLite database"
+          >
+            <History size={15} className="text-muted" />
+            <span>DB History ({historyCount})</span>
+          </button>
+        )}
       </div>
     </div>
   );
