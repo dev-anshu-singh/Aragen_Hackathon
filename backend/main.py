@@ -2,7 +2,8 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+
+from backend.models import AnalyzeRequest, AnalyzeResponse
 
 from backend.agent.graph import agent
 
@@ -18,31 +19,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-class LabInputModel(BaseModel):
-    test_name: str
-    value: str
-    unit: str
-
-
-class AnalyzeRequest(BaseModel):
-    labs: list[LabInputModel]
-
-
-class LabResultModel(BaseModel):
-    test_name: str
-    value: str
-    unit: str
-    status: str
-    reference_range: str
-    explanation: str
-    next_step: str
-
-
-class AnalyzeResponse(BaseModel):
-    results: list[LabResultModel]
-    summary: str
 
 
 @app.post("/analyze_labs", response_model=AnalyzeResponse)

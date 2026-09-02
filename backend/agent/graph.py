@@ -9,13 +9,10 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from backend.agent.state import AgentState
+from backend.config import MCP_SERVER_PATH
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-MCP_SERVER_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "mcp_server", "server.py"
-)
 
 SEVERITY_ORDER = {"Critical": 0, "Warning": 1, "Normal": 2}
 

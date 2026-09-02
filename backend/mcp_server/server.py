@@ -3,12 +3,15 @@ import sys
 import json
 import logging
 
-from dotenv import load_dotenv
+try:
+    from backend.config import GEMINI_API_KEY, GEMINI_MODEL_NAME, FALLBACK_MODELS
+except ImportError:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+    from backend.config import GEMINI_API_KEY, GEMINI_MODEL_NAME, FALLBACK_MODELS
+
 from fastmcp import FastMCP
-
 from google import genai
-
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+from google.genai import types
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -240,11 +243,6 @@ def _classify_quantitative(value: float, data: dict, ref_range: str) -> dict:
     return {"status": status, "reference_range": ref_range}
 
 
-from google.genai import types
-
-FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"]
-
-
 @mcp.tool()
 def generate_explanation(test_name: str, value: str, unit: str, status: str, reference_range: str) -> dict:
     """Generate a clinical explanation for a lab result using AI."""
@@ -254,7 +252,7 @@ def generate_explanation(test_name: str, value: str, unit: str, status: str, ref
             "next_step": "Continue routine health maintenance and periodic monitoring."
         }
 
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
     if not api_key:
         return {
             "explanation": f"{test_name} is {value} {unit} ({status}). Reference range: {reference_range}.",
