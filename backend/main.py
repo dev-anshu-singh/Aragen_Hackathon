@@ -42,6 +42,7 @@ async def analyze_labs(request: AnalyzeRequest):
                 "reference_range": "Error",
                 "explanation": f"Error processing {lab['test_name']}: {str(e)}",
                 "next_step": "Please retry or consult healthcare provider.",
+                "source": "unknown",
             }
             for lab in labs
         ]

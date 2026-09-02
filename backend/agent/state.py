@@ -13,6 +13,7 @@ class ClassifiedResult(TypedDict):
     unit: str
     status: str
     reference_range: str
+    source: str
 
 
 class AnalyzedResult(TypedDict):
@@ -23,6 +24,7 @@ class AnalyzedResult(TypedDict):
     reference_range: str
     explanation: str
     next_step: str
+    source: str
 
 
 class AgentState(TypedDict):

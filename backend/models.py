@@ -20,6 +20,7 @@ class ResultItem(BaseModel):
     reference_range: str
     explanation: str
     next_step: str
+    source: str = "verified"
 
 
 class AnalyzeResponse(BaseModel):

@@ -172,12 +172,77 @@ def reference_range_lookup(test_name: str) -> dict:
     return result
 
 
+async def _call_gemini_json(prompt: str) -> dict | None:
+    """Shared helper to call Gemini with fallback models and parse JSON."""
+    api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None
+
+    client = genai.Client(api_key=api_key)
+    config = types.GenerateContentConfig(
+        temperature=0.2,
+        response_mime_type="application/json"
+    )
+
+    for model_name in FALLBACK_MODELS:
+        try:
+            response = await client.aio.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=config
+            )
+            text = response.text.strip()
+            if "```json" in text:
+                text = text.split("```json", 1)[1].split("```", 1)[0].strip()
+            elif "```" in text:
+                text = text.split("```", 1)[1].split("```", 1)[0].strip()
+            return json.loads(text)
+        except Exception as e:
+            logger.warning(f"Model {model_name} failed: {e}. Trying next fallback model...")
+            continue
+    return None
+
+
 @mcp.tool()
-def classify_value(test_name: str, value: str, unit: str) -> dict:
+async def llm_classify_unknown(test_name: str, value: str, unit: str) -> dict:
+    """Classify a lab test not present in REFERENCE_RANGES using LLM medical knowledge."""
+    prompt = (
+        f"Lab test: '{test_name}' with result value '{value}' and unit '{unit}'.\n"
+        f"You are an expert clinical laboratory pathologist. Based on standard clinical reference ranges:\n"
+        f"1. Determine if this value is 'Normal', 'Warning' (mild/moderate abnormality), or 'Critical' (severe/life-threatening panic value requiring immediate attention).\n"
+        f"2. Provide the standard typical reference range as a human-readable string (e.g. '30-100 ng/mL' or '0.7-1.3 mg/dL').\n"
+        f"3. State your clinical confidence level: 'high', 'medium', or 'low'.\n"
+        f"Respond ONLY with strict JSON with exactly these keys: 'status', 'reference_range', 'confidence'."
+    )
+
+    result = await _call_gemini_json(prompt)
+    if result and isinstance(result, dict):
+        status = result.get("status", "Warning")
+        if status not in {"Normal", "Warning", "Critical"}:
+            status = "Warning"
+        ref_range = str(result.get("reference_range", "Unknown (AI Estimated)"))
+        confidence = str(result.get("confidence", "medium"))
+        return {
+            "status": status,
+            "reference_range": ref_range,
+            "confidence": confidence,
+            "source": "llm_estimated"
+        }
+
+    return {
+        "status": "Warning",
+        "reference_range": "Unknown (Standard medical reference not in database)",
+        "confidence": "low",
+        "source": "llm_estimated"
+    }
+
+
+@mcp.tool()
+async def classify_value(test_name: str, value: str, unit: str) -> dict:
     """Classify a lab test result as Normal, Warning, or Critical."""
     ref = reference_range_lookup(test_name)
     if "error" in ref:
-        return {"status": "Warning", "reference_range": "Unknown", "note": ref["error"]}
+        return await llm_classify_unknown(test_name, value, unit)
 
     resolved = ref["test_name"]
     data = REFERENCE_RANGES[resolved]
@@ -209,7 +274,7 @@ def _classify_qualitative(value: str, ref_range: str) -> dict:
     else:
         status = "Warning"
 
-    return {"status": status, "reference_range": ref_range}
+    return {"status": status, "reference_range": ref_range, "source": "verified"}
 
 
 def _classify_quantitative(value: float, data: dict, ref_range: str) -> dict:
@@ -219,12 +284,12 @@ def _classify_quantitative(value: float, data: dict, ref_range: str) -> dict:
     panic_high = data.get("panic_high")
 
     if panic_low is not None and value <= panic_low:
-        return {"status": "Critical", "reference_range": ref_range}
+        return {"status": "Critical", "reference_range": ref_range, "source": "verified"}
     if panic_high is not None and value >= panic_high:
-        return {"status": "Critical", "reference_range": ref_range}
+        return {"status": "Critical", "reference_range": ref_range, "source": "verified"}
 
     if min_val <= value <= max_val:
-        return {"status": "Normal", "reference_range": ref_range}
+        return {"status": "Normal", "reference_range": ref_range, "source": "verified"}
 
     range_width = max_val - min_val
     if range_width == 0:
@@ -240,26 +305,22 @@ def _classify_quantitative(value: float, data: dict, ref_range: str) -> dict:
     else:
         status = "Warning"
 
-    return {"status": status, "reference_range": ref_range}
+    return {"status": status, "reference_range": ref_range, "source": "verified"}
 
 
 @mcp.tool()
-async def generate_explanation(test_name: str, value: str, unit: str, status: str, reference_range: str) -> dict:
+async def generate_explanation(test_name: str, value: str, unit: str, status: str, reference_range: str, source: str = "verified") -> dict:
     """Generate a clinical explanation for a lab result using AI."""
+    caveat = " (Note: Classification and reference range estimated via AI medical knowledge; please verify against specific laboratory reference standards.)" if source == "llm_estimated" else ""
+
     if status == "Normal":
+        next_step = "Continue routine health maintenance and periodic monitoring."
+        if caveat:
+            next_step += caveat
         return {
             "explanation": f"{test_name} result of {value} {unit} is within normal reference limits ({reference_range}).",
-            "next_step": "Continue routine health maintenance and periodic monitoring."
+            "next_step": next_step
         }
-
-    api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return {
-            "explanation": f"{test_name} is {value} {unit} ({status}). Reference range: {reference_range}.",
-            "next_step": "Consult healthcare provider for interpretation."
-        }
-
-    client = genai.Client(api_key=api_key)
 
     prompt = (
         f"Lab result: {test_name} = {value} {unit}. Reference range: {reference_range}. Status: {status}.\n"
@@ -269,35 +330,23 @@ async def generate_explanation(test_name: str, value: str, unit: str, status: st
         f"Respond in JSON with keys 'explanation' and 'next_step'."
     )
 
-    config = types.GenerateContentConfig(
-        temperature=0.2,
-        response_mime_type="application/json"
-    )
+    result = await _call_gemini_json(prompt)
+    if result and isinstance(result, dict):
+        explanation = result.get("explanation", f"{test_name} is {status}.")
+        next_step = result.get("next_step", "Consult healthcare provider.")
+        if caveat:
+            next_step += caveat
+        return {
+            "explanation": explanation,
+            "next_step": next_step
+        }
 
-    for model_name in FALLBACK_MODELS:
-        try:
-            response = await client.aio.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config=config
-            )
-            text = response.text.strip()
-            if "```json" in text:
-                text = text.split("```json", 1)[1].split("```", 1)[0].strip()
-            elif "```" in text:
-                text = text.split("```", 1)[1].split("```", 1)[0].strip()
-            result = json.loads(text)
-            return {
-                "explanation": result.get("explanation", f"{test_name} is {status}."),
-                "next_step": result.get("next_step", "Consult healthcare provider.")
-            }
-        except Exception as e:
-            logger.warning(f"Model {model_name} failed: {e}. Trying next fallback model...")
-            continue
-
+    fallback_next_step = "Consult healthcare provider for comprehensive diagnostic evaluation."
+    if caveat:
+        fallback_next_step += caveat
     return {
         "explanation": f"{test_name} at {value} {unit} is classified as {status} (Reference: {reference_range}). Potential physiological anomaly detected.",
-        "next_step": "Consult healthcare provider for comprehensive diagnostic evaluation."
+        "next_step": fallback_next_step
     }
 
 

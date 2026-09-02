@@ -46,6 +46,7 @@ async def classify_node(state: AgentState) -> dict:
                 "unit": lab["unit"],
                 "status": result.get("status", "Warning"),
                 "reference_range": result.get("reference_range", "Unknown"),
+                "source": result.get("source", "unknown"),
             }
         except Exception as e:
             logger.error(f"Classification error for {lab['test_name']}: {e}")
@@ -55,6 +56,7 @@ async def classify_node(state: AgentState) -> dict:
                 "unit": lab["unit"],
                 "status": "Warning",
                 "reference_range": "Error during classification",
+                "source": "unknown",
             }
 
     async with stdio_client(server_params) as (read, write):
@@ -89,11 +91,13 @@ async def explain_node(state: AgentState) -> dict:
                 "unit": item["unit"],
                 "status": item["status"],
                 "reference_range": item["reference_range"],
+                "source": item.get("source", "verified"),
             })
             return {
                 **item,
                 "explanation": result.get("explanation", "No explanation available."),
                 "next_step": result.get("next_step", "Consult healthcare provider."),
+                "source": item.get("source", "verified"),
             }
         except Exception as e:
             logger.error(f"Explanation error for {item['test_name']}: {e}")
@@ -101,6 +105,7 @@ async def explain_node(state: AgentState) -> dict:
                 **item,
                 "explanation": f"{item['test_name']} is {item['status']}.",
                 "next_step": "Consult healthcare provider.",
+                "source": item.get("source", "unknown"),
             }
 
     async with stdio_client(server_params) as (read, write):
