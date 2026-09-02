@@ -244,7 +244,7 @@ def _classify_quantitative(value: float, data: dict, ref_range: str) -> dict:
 
 
 @mcp.tool()
-def generate_explanation(test_name: str, value: str, unit: str, status: str, reference_range: str) -> dict:
+async def generate_explanation(test_name: str, value: str, unit: str, status: str, reference_range: str) -> dict:
     """Generate a clinical explanation for a lab result using AI."""
     if status == "Normal":
         return {
@@ -276,7 +276,7 @@ def generate_explanation(test_name: str, value: str, unit: str, status: str, ref
 
     for model_name in FALLBACK_MODELS:
         try:
-            response = client.models.generate_content(
+            response = await client.aio.models.generate_content(
                 model=model_name,
                 contents=prompt,
                 config=config
