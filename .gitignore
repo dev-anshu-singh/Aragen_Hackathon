@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Assignment & Internal Skill Docs
+SKILL.md
+ASSIGNMENT.md
+
 # Python
 __pycache__/
 *.py[cod]
