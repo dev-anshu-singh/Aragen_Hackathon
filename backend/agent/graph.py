@@ -25,42 +25,44 @@ async def _call_mcp_tool(session: ClientSession, tool_name: str, arguments: dict
 
 async def classify_node(state: AgentState) -> dict:
     labs = state["labs"]
-    classified = []
+    if not labs:
+        return {"classified": []}
 
     server_params = StdioServerParameters(
         command=sys.executable,
         args=[MCP_SERVER_PATH],
     )
 
+    async def _classify_single(session: ClientSession, lab: dict) -> dict:
+        try:
+            result = await _call_mcp_tool(session, "classify_value", {
+                "test_name": lab["test_name"],
+                "value": str(lab["value"]),
+                "unit": lab["unit"],
+            })
+            return {
+                "test_name": lab["test_name"],
+                "value": str(lab["value"]),
+                "unit": lab["unit"],
+                "status": result.get("status", "Warning"),
+                "reference_range": result.get("reference_range", "Unknown"),
+            }
+        except Exception as e:
+            logger.error(f"Classification error for {lab['test_name']}: {e}")
+            return {
+                "test_name": lab["test_name"],
+                "value": str(lab["value"]),
+                "unit": lab["unit"],
+                "status": "Warning",
+                "reference_range": "Error during classification",
+            }
+
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
+            classified = await asyncio.gather(*[_classify_single(session, lab) for lab in labs])
 
-            for lab in labs:
-                try:
-                    result = await _call_mcp_tool(session, "classify_value", {
-                        "test_name": lab["test_name"],
-                        "value": str(lab["value"]),
-                        "unit": lab["unit"],
-                    })
-                    classified.append({
-                        "test_name": lab["test_name"],
-                        "value": str(lab["value"]),
-                        "unit": lab["unit"],
-                        "status": result.get("status", "Warning"),
-                        "reference_range": result.get("reference_range", "Unknown"),
-                    })
-                except Exception as e:
-                    logger.error(f"Classification error for {lab['test_name']}: {e}")
-                    classified.append({
-                        "test_name": lab["test_name"],
-                        "value": str(lab["value"]),
-                        "unit": lab["unit"],
-                        "status": "Warning",
-                        "reference_range": "Error during classification",
-                    })
-
-    return {"classified": classified}
+    return {"classified": list(classified)}
 
 
 async def route_node(state: AgentState) -> dict:
@@ -71,40 +73,42 @@ async def route_node(state: AgentState) -> dict:
 
 async def explain_node(state: AgentState) -> dict:
     routed = state["routed"]
-    results = []
+    if not routed:
+        return {"results": []}
 
     server_params = StdioServerParameters(
         command=sys.executable,
         args=[MCP_SERVER_PATH],
     )
 
+    async def _explain_single(session: ClientSession, item: dict) -> dict:
+        try:
+            result = await _call_mcp_tool(session, "generate_explanation", {
+                "test_name": item["test_name"],
+                "value": item["value"],
+                "unit": item["unit"],
+                "status": item["status"],
+                "reference_range": item["reference_range"],
+            })
+            return {
+                **item,
+                "explanation": result.get("explanation", "No explanation available."),
+                "next_step": result.get("next_step", "Consult healthcare provider."),
+            }
+        except Exception as e:
+            logger.error(f"Explanation error for {item['test_name']}: {e}")
+            return {
+                **item,
+                "explanation": f"{item['test_name']} is {item['status']}.",
+                "next_step": "Consult healthcare provider.",
+            }
+
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
+            results = await asyncio.gather(*[_explain_single(session, item) for item in routed])
 
-            for item in routed:
-                try:
-                    result = await _call_mcp_tool(session, "generate_explanation", {
-                        "test_name": item["test_name"],
-                        "value": item["value"],
-                        "unit": item["unit"],
-                        "status": item["status"],
-                        "reference_range": item["reference_range"],
-                    })
-                    results.append({
-                        **item,
-                        "explanation": result.get("explanation", "No explanation available."),
-                        "next_step": result.get("next_step", "Consult healthcare provider."),
-                    })
-                except Exception as e:
-                    logger.error(f"Explanation error for {item['test_name']}: {e}")
-                    results.append({
-                        **item,
-                        "explanation": f"{item['test_name']} is {item['status']}.",
-                        "next_step": "Consult healthcare provider.",
-                    })
-
-    return {"results": results}
+    return {"results": list(results)}
 
 
 def build_graph() -> StateGraph:
