@@ -3,37 +3,19 @@ import { CheckCircle2, AlertTriangle, AlertOctagon, RotateCcw, FlaskConical } fr
 
 export const DEMO_PRESETS = {
   normal: [
-    { test_name: "Hemoglobin", value: "14.2", unit: "g/dL" },
-    { test_name: "Glucose", value: "88", unit: "mg/dL" },
-    { test_name: "HbA1c", value: "5.1", unit: "%" },
-    { test_name: "TSH", value: "2.1", unit: "mU/L" },
-    { test_name: "Free T4", value: "1.25", unit: "ng/dL" },
-    { test_name: "Insulin", value: "8.5", unit: "mU/L" },
-    { test_name: "Ferritin", value: "65", unit: "ug/L" },
-    { test_name: "WBC", value: "6.8", unit: "10^3/uL" },
-    { test_name: "Platelets", value: "240", unit: "10^3/uL" },
-    { test_name: "Protein (Strip)", value: "Negatif", unit: "-" },
-    { test_name: "Glucose (Strip)", value: "Normal", unit: "-" }
+    { test_name: "Hemoglobin", value: "14.5", unit: "g/dL" },
+    { test_name: "Glucose", value: "85", unit: "mg/dL" },
+    { test_name: "WBC", value: "7.0", unit: "10^3/uL" }
   ],
   warning: [
-    { test_name: "Hemoglobin", value: "11.2", unit: "g/dL" },
-    { test_name: "HbA1c", value: "6.2", unit: "%" },
-    { test_name: "TSH", value: "5.8", unit: "mU/L" },
-    { test_name: "Glucose", value: "115", unit: "mg/dL" },
-    { test_name: "Ferritin", value: "175", unit: "ug/L" },
-    { test_name: "WBC", value: "12.5", unit: "10^3/uL" },
-    { test_name: "Protein (Strip)", value: "1+", unit: "-" },
-    { test_name: "Platelets", value: "135", unit: "10^3/uL" }
+    { test_name: "TSH", value: "5.5", unit: "mU/L" },
+    { test_name: "Glucose", value: "112", unit: "mg/dL" },
+    { test_name: "Platelets", value: "130", unit: "10^3/uL" }
   ],
   critical: [
-    { test_name: "Hemoglobin", value: "5.8", unit: "g/dL" },
-    { test_name: "Glucose", value: "480", unit: "mg/dL" },
-    { test_name: "Platelets", value: "22", unit: "10^3/uL" },
-    { test_name: "TSH", value: "16.5", unit: "mU/L" },
-    { test_name: "WBC", value: "35.0", unit: "10^3/uL" },
-    { test_name: "Protein (Strip)", value: "3+", unit: "-" },
-    { test_name: "Free T4", value: "0.25", unit: "ng/dL" },
-    { test_name: "HbA1c", value: "11.5", unit: "%" }
+    { test_name: "Hemoglobin", value: "6.0", unit: "g/dL" },
+    { test_name: "Glucose", value: "450", unit: "mg/dL" },
+    { test_name: "Platelets", value: "30", unit: "10^3/uL" }
   ]
 };
 

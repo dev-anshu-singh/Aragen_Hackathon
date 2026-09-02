@@ -152,7 +152,7 @@ Every abnormal result gets a **real-time LLM-generated explanation** with:
 | `DELETE` | `/history` | Clear all saved analysis history |
 
 ### Error Handling
-- **Invalid lab names** → LLM fallback classification (never crashes)
+- **Invalid test names** → LLM fallback classification (never crashes)
 - **Missing data** → Pydantic validation at API boundary
 - **Gemini timeout** → 10-second `asyncio.wait_for` per call, auto-fallback to next model
 - **All models fail** → Safe hardcoded fallback response (Warning status, "Consult healthcare provider")
@@ -253,9 +253,9 @@ Three synthetic clinical panels in `test_data/` for verification:
 
 | CSV File | Clinical Scenario | Expected Output |
 |---|---|---|
-| `normal_panel.csv` | Healthy baseline (11 tests) | 0 Critical, 0 Warning, 11 Normal |
-| `warning_panel.csv` | Prediabetes, subclinical hypothyroid, mild anemia (8 tests) | 0 Critical, 8 Warning, 0 Normal |
-| `critical_panel.csv` | Severe anemia (Hb 5.8), DKA glucose (480), thrombocytopenia (8 tests) | 8 Critical, 0 Warning, 0 Normal |
+| `normal_panel.csv` | Healthy baseline (Hemoglobin 14.5, Glucose 85, WBC 7.0) | 0 Critical, 0 Warning, 3 Normal |
+| `warning_panel.csv` | Mild anomalies (TSH 5.5, Glucose 112, Platelets 130) | 0 Critical, 3 Warning, 0 Normal |
+| `critical_panel.csv` | Acute panic values (Hemoglobin 6.0, Glucose 450, Platelets 30) | 3 Critical, 0 Warning, 0 Normal |
 
 You can also load these instantly via the **Pre-built Test Cases** buttons in the UI.
 

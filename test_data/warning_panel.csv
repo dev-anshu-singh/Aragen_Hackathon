@@ -1,9 +1,4 @@
-Date,Test_Name,Result,Unit,Reference_Range
-2026-09-02,Hemoglobin,11.2,g/dL,12.0-17.5
-2026-09-02,HbA1c,6.2,%,4.0-5.6
-2026-09-02,TSH,5.8,mU/L,0.4-4.0
-2026-09-02,Glucose,115,mg/dL,70-100
-2026-09-02,Ferritin,175,ug/L,12-150
-2026-09-02,WBC,12.5,10^3/uL,4.5-11.0
-2026-09-02,Protein (Strip),1+,-,Negatif
-2026-09-02,Platelets,135,10^3/uL,150-400
+test_name,value,unit
+TSH,5.5,mU/L
+Glucose,112,mg/dL
+Platelets,130,10^3/uL
