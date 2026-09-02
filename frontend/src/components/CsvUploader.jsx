@@ -13,11 +13,11 @@ export default function CsvUploader({ onLabsLoaded }) {
       throw new Error("CSV file is empty or missing data rows.");
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ''));
     
     // Find column indexes
     let nameIdx = headers.findIndex(h => h.includes('test') || h.includes('name'));
-    let valIdx = headers.findIndex(h => h.includes('result') || h.includes('val'));
+    let valIdx = headers.findIndex(h => h.includes('result') || h.includes('val') || h.includes('value'));
     let unitIdx = headers.findIndex(h => h.includes('unit'));
 
     if (nameIdx === -1) nameIdx = 0;
@@ -29,13 +29,15 @@ export default function CsvUploader({ onLabsLoaded }) {
       const line = lines[i].trim();
       if (!line) continue;
       
-      const cols = line.split(',').map(c => c.trim());
+      const cols = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
       if (cols.length >= 2) {
         const test_name = cols[nameIdx] || `Test ${i}`;
         const value = cols[valIdx] !== undefined ? cols[valIdx] : '';
         const unit = (unitIdx < cols.length && cols[unitIdx]) ? cols[unitIdx] : '-';
 
-        parsedLabs.push({ test_name, value, unit });
+        if (test_name.trim() && value.trim()) {
+          parsedLabs.push({ test_name: test_name.trim(), value: value.trim(), unit: unit.trim() });
+        }
       }
     }
 
@@ -104,6 +106,7 @@ export default function CsvUploader({ onLabsLoaded }) {
           onChange={(e) => {
             if (e.target.files && e.target.files[0]) {
               handleFile(e.target.files[0]);
+              e.target.value = '';
             }
           }}
         />

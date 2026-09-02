@@ -41,6 +41,8 @@ export default function App() {
   const handleSelectPreset = (presetKey, data) => {
     setActivePreset(presetKey);
     setLabs(JSON.parse(JSON.stringify(data)));
+    setResults([]);
+    setSummary('');
     setErrorMessage('');
   };
 
@@ -56,6 +58,8 @@ export default function App() {
   const handleLabsLoaded = (newLabs, fileName) => {
     setActivePreset(null);
     setLabs(newLabs);
+    setResults([]);
+    setSummary('');
     setErrorMessage('');
   };
 
@@ -176,7 +180,7 @@ export default function App() {
           {/* Result Cards Grid */}
           <div className="results-grid">
             {filteredResults.map((res, idx) => (
-              <ResultCard key={idx} result={res} index={idx} />
+              <ResultCard key={`${res.test_name}-${res.value}-${res.status}-${idx}`} result={res} index={idx} />
             ))}
           </div>
         </section>
